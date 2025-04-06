@@ -828,15 +828,15 @@
       
       // Exibe as cartas do dealer
       dealerCards.forEach((card, index) => {
-        if (index === 0 && gameStarted && playerSum <= 21) {
-          // Esconde a primeira carta do dealer durante o jogo
-          const cardElement = createCardElement(null, true);
-          dealerCardsDiv.appendChild(cardElement);
-        } else {
-          const cardElement = createCardElement(card);
-          dealerCardsDiv.appendChild(cardElement);
-        }
-      });
+    if (index === 0 && gameStarted && playerSum <= 21) {
+      // Esconde a primeira carta do dealer durante o jogo
+      const cardElement = createCardElement(null, true);
+      dealerCardsDiv.appendChild(cardElement);
+    } else {
+      const cardElement = createCardElement(card);
+      dealerCardsDiv.appendChild(cardElement);
+    }
+  });
 
       // Exibe as cartas do jogador
       playerCards.forEach(card => {
