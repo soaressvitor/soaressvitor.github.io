@@ -822,14 +822,15 @@
     }
 
     function displayCards() {
-      // Limpa as cartas exibidas
-      dealerCardsDiv.innerHTML = "";
-      playerCardsDiv.innerHTML = "";
-      
-      // Exibe as cartas do dealer
-      dealerCards.forEach((card, index) => {
-    if (index === 0 && gameStarted && playerSum <= 21) {
-      // Esconde a primeira carta do dealer durante o jogo
+
+  dealerCardsDiv.innerHTML = "";
+  playerCardsDiv.innerHTML = "";
+  
+  // Exibe as cartas do dealer
+  dealerCards.forEach((card, index) => {
+    if (index === 0 && gameStarted === false) {
+      // Sempre oculta a primeira carta durante a distribuição
+
       const cardElement = createCardElement(null, true);
       dealerCardsDiv.appendChild(cardElement);
     } else {
@@ -838,15 +839,16 @@
     }
   });
 
-      // Exibe as cartas do jogador
-      playerCards.forEach(card => {
-        const cardElement = createCardElement(card);
-        playerCardsDiv.appendChild(cardElement);
-      });
 
-      // Adiciona fichas de aposta
-      addChips();
-    }
+  // Exibe as cartas do jogador
+  playerCards.forEach(card => {
+    const cardElement = createCardElement(card);
+    playerCardsDiv.appendChild(cardElement);
+  });
+
+  addChips();
+}
+
 
     function createCardElement(card, isHidden = false) {
   const cardElement = document.createElement('div');
@@ -892,8 +894,11 @@
     }
 
     function dealerPlay() {
-  // Revela a carta escondida do dealer
-  displayCards(); // Agora mostra todas as cartas
+
+  // Força a exibição de todas as cartas do dealer
+  gameStarted = false;
+  displayCards();
+
   updateSums();
 
       // Dealer compra cartas até alcançar pelo menos 17
@@ -998,51 +1003,63 @@
     }
 
     function startGame() {
-      // Verifica se tem saldo suficiente
-      if (balance < currentBet) {
-        showMessage("Saldo insuficiente!");
-        return;
-      }
+  // Verifica se tem saldo suficiente
+  if (balance < currentBet) {
+    showMessage("Saldo insuficiente!");
+    return;
+  }
 
-      createDeck();
-      shuffleDeck();
+  createDeck();
+  shuffleDeck();
 
-      playerCards = [];
-      dealerCards = [];
-      resultBadge.style.display = "none";
+  playerCards = [];
+  dealerCards = [];
+  resultBadge.style.display = "none";
+  gameStarted = false; // Garante que o jogo não inicia antes da hora
 
-      // Distribui cartas com pequeno atraso para efeito
-      setTimeout(() => {
-    playerCards.push(dealCard());
+  // Distribui a primeira carta para o jogador
+  playerCards.push(dealCard());
+  updateSums();
+  displayCards();
+
+  // Distribui a carta oculta para o dealer
+  setTimeout(() => {
     dealerCards.push(dealCard());
     updateSums();
-    displayCards(); // Aqui a primeira carta do dealer já aparece oculta
+    displayCards();
 
+    // Distribui a segunda carta para o jogador
     setTimeout(() => {
       playerCards.push(dealCard());
-      dealerCards.push(dealCard());
       updateSums();
-      displayCards(); // Continua oculta
+      displayCards();
 
-      gameStarted = true; // Flag importante para controle
-          canDouble = true;
+      // Distribui a segunda carta para o dealer (visível)
+      setTimeout(() => {
 
-          // Atualiza botões
-          dealButton.disabled = true;
-          hitButton.disabled = false;
-          standButton.disabled = false;
-          doubleButton.disabled = playerCards.length > 2 || balance < currentBet * 2;
-          showMessage("Faça sua jogada");
-          
-          // Verifica blackjack
-          if (playerSum === 21) {
-            setTimeout(() => {
-              endGame("Blackjack! Você venceu!", true, true);
-            }, 1000);
-          }
-        }, 300);
+        dealerCards.push(dealCard());
+        gameStarted = true; // Só marca como iniciado após todas as cartas
+        updateSums();
+        displayCards();
+
+        // Atualiza botões
+        dealButton.disabled = true;
+        hitButton.disabled = false;
+        standButton.disabled = false;
+        doubleButton.disabled = playerCards.length > 2 || balance < currentBet * 2;
+        showMessage("Faça sua jogada");
+        
+        // Verifica blackjack
+        if (playerSum === 21) {
+          setTimeout(() => {
+            endGame("Blackjack! Você venceu!", true, true);
+          }, 1000);
+        }
+
       }, 300);
-    }
+    }, 300);
+  }, 300);
+}
 
     function hit() {
       const card = dealCard();
