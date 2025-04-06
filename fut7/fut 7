@@ -1,0 +1,1650 @@
+// Configurações avançadas do jogo
+const advancedConfig = {
+    fieldTypes: {
+        grass: { friction: 0.98, speedFactor: 1.0 },
+        synthetic: { friction: 0.95, speedFactor: 1.1 },
+        sand: { friction: 0.92, speedFactor: 0.9 }
+    },
+    weatherEffects: {
+        sunny: { visibility: 1.0, speedFactor: 1.0, shotAccuracy: 1.0 },
+        rainy: { visibility: 0.8, speedFactor: 0.9, shotAccuracy: 0.85 },
+        foggy: { visibility: 0.7, speedFactor: 1.0, shotAccuracy: 0.75 }
+    },
+    positions: {
+        goalkeeper: { x: 0, y: 0.5, defenseArea: 0.2 },
+        defender: { x: 0.2, yVariation: 0.3, defenseArea: 0.4 },
+        midfielder: { x: 0.4, yVariation: 0.4, defenseArea: 0.6 },
+        attacker: { x: 0.6, yVariation: 0.5, defenseArea: 0.8 }
+    },
+    baseSkills: {
+        goalkeeper: { defense: 0.8, speed: 0.6, stamina: 0.7, shot: 0.3 },
+        defender: { defense: 0.7, speed: 0.5, stamina: 0.6, shot: 0.4 },
+        midfielder: { defense: 0.5, speed: 0.7, stamina: 0.8, shot: 0.6 },
+        attacker: { defense: 0.3, speed: 0.8, stamina: 0.7, shot: 0.8 }
+    }
+};
+
+// Jogadores com nomes engraçados e posições
+const funnyPlayersTeamA = [
+    { name: "Chuterson da Silva", position: "attacker" },
+    { name: "Bambam do Drible", position: "attacker" },
+    { name: "Tonhão Cabeçudo", position: "midfielder" },
+    { name: "Perna de Pau", position: "midfielder" },
+    { name: "Zé Banguela", position: "defender" },
+    { name: "Goleiro Cebola", position: "goalkeeper" },
+    { name: "Tio Patinhas", position: "defender" }
+];
+
+const funnyPlayersTeamB = [
+    { name: "Ronaldinho Sorriso", position: "attacker" },
+    { name: "Pé de Rato", position: "attacker" },
+    { name: "Juninho Bexiga", position: "midfielder" },
+    { name: "Girafa do Campo", position: "midfielder" },
+    { name: "Zé Canhotinho", position: "defender" },
+    { name: "Goleiro Mão de Alface", position: "goalkeeper" },
+    { name: "Tico-Tico no Fubá", position: "defender" }
+];
+
+// Estado avançado do jogo
+let gameState = {
+    // Configurações
+    config: {
+        matchDuration: 90,         // 1:30 minuto em segundos
+        bettingCutoff: 30,        // Apostas permitidas até os 30s finais
+        totalMatches: 2,          // Número de partidas
+        credits: 1000,            // Créditos iniciais
+        fieldType: "grass",       // Tipo de campo
+        weather: "sunny",         // Condição climática
+        teamAName: "Time Vermelho",
+        teamBName: "Time Azul"
+    },
+    
+    // Estado atual
+    currentMatch: 1,
+    isFirstHalf: true,
+    scoreTeamA: 0,
+    scoreTeamB: 0,
+    matchScoreTeamA: 0,
+    matchScoreTeamB: 0,
+    timeLeft: 0,
+    isMatchRunning: false,
+    isBettingOpen: false,
+    isPaused: false,
+    timerInterval: null,
+    gameLoop: null,
+    lastUpdateTime: 0,
+    
+    // Elementos do jogo
+    ball: { 
+        x: 0, y: 0, 
+        vx: 0, vy: 0, 
+        owner: null, 
+        lastOwner: null,
+        friction: 0.98,
+        trajectory: []
+    },
+    
+    playersTeamA: [],
+    playersTeamB: [],
+    
+    // Estatísticas
+    stats: {
+        possessionTeamA: 0,
+        possessionTeamB: 0,
+        lastPossessionUpdate: 0,
+        shotsTeamA: 0,
+        shotsTeamB: 0,
+        passesTeamA: 0,
+        passesTeamB: 0,
+        tacklesTeamA: 0,
+        tacklesTeamB: 0,
+        foulsTeamA: 0,
+        foulsTeamB: 0
+    },
+    
+    // Apostas
+    bets: [],
+    activeBets: [],
+    odds: {
+        'team-a': 2.5,
+        'team-b': 2.5,
+        'draw': 3.0,
+        'next-goal': 1.8
+    },
+    
+    // Eventos
+    gameEvents: [],
+    lastGoalTime: 0,
+    nextGoalBet: null,
+    
+    // Resultados
+    matchResults: []
+};
+
+// Elementos do DOM
+const elements = {
+    field: document.getElementById('field'),
+    scoreA: document.getElementById('score-a'),
+    scoreB: document.getElementById('score-b'),
+    timer: document.getElementById('timer'),
+    matchPhase: document.getElementById('match-phase'),
+    possession: document.getElementById('possession'),
+    teamATitle: document.getElementById('team-a-title'),
+    teamBTitle: document.getElementById('team-b-title'),
+    betStatus: document.getElementById('bet-status'),
+    playerCredits: document.getElementById('player-credits'),
+    messages: document.getElementById('messages'),
+    teamAStats: document.getElementById('team-a-stats'),
+    teamBStats: document.getElementById('team-b-stats'),
+    teamAPossession: document.getElementById('team-a-possession'),
+    teamBPossession: document.getElementById('team-b-possession'),
+    startBtn: document.getElementById('start-btn'),
+    pauseBtn: document.getElementById('pause-btn'),
+    restartBtn: document.getElementById('restart-btn'),
+    nextMatchBtn: document.getElementById('next-match-btn'),
+    goalEffect: document.getElementById('goal-effect'),
+    shotEffect: document.getElementById('shot-effect'),
+    activeBets: document.getElementById('active-bets'),
+    oddsTeamA: document.getElementById('odds-team-a'),
+    oddsTeamB: document.getElementById('odds-team-b'),
+    oddsDraw: document.getElementById('odds-draw'),
+    oddsNextGoal: document.getElementById('odds-next-goal'),
+    betHistory: document.getElementById('bet-history'),
+    finalResultContent: document.getElementById('final-result-content')
+};
+
+// Inicializar o jogo
+function initGame() {
+    // Aplicar configurações iniciais
+    applyInitialConfig();
+    
+    // Criar jogadores
+    createPlayers();
+    
+    // Posicionar elementos
+    positionPlayers();
+    
+    // Atualizar UI
+    updateUI();
+    
+    // Iniciar loop de animação
+    requestAnimationFrame(gameAnimationLoop);
+}
+
+// Aplicar configurações iniciais
+function applyInitialConfig() {
+    // Atualizar nomes dos times
+    elements.teamATitle.textContent = gameState.config.teamAName;
+    elements.teamBTitle.textContent = gameState.config.teamBName;
+    
+    // Atualizar créditos
+    elements.playerCredits.textContent = `Créditos: ${gameState.config.credits}`;
+    
+    // Aplicar efeitos visuais do campo
+    applyFieldEffects();
+}
+
+// Aplicar efeitos visuais baseados no tipo de campo e clima
+function applyFieldEffects() {
+    const field = elements.field;
+    
+    // Resetar classes
+    field.className = '';
+    field.classList.add('field');
+    
+    // Adicionar classes baseadas nas configurações
+    field.classList.add(`field-${gameState.config.fieldType}`);
+    field.classList.add(`weather-${gameState.config.weather}`);
+    
+    // Aplicar configurações físicas
+    const fieldConfig = advancedConfig.fieldTypes[gameState.config.fieldType];
+    const weatherConfig = advancedConfig.weatherEffects[gameState.config.weather];
+    
+    gameState.ball.friction = fieldConfig.friction * weatherConfig.speedFactor;
+    
+    // Ajustar habilidades dos jogadores baseado no clima
+    gameState.playersTeamA.forEach(player => {
+        adjustPlayerSkills(player, weatherConfig);
+    });
+    
+    gameState.playersTeamB.forEach(player => {
+        adjustPlayerSkills(player, weatherConfig);
+    });
+}
+
+// Ajustar habilidades dos jogadores baseado no clima
+function adjustPlayerSkills(player, weatherConfig) {
+    player.effectiveSkills = {
+        speed: player.skills.speed * weatherConfig.speedFactor,
+        shot: player.skills.shot * weatherConfig.shotAccuracy,
+        defense: player.skills.defense,
+        stamina: player.skills.stamina
+    };
+}
+
+// Criar jogadores com atributos avançados
+function createPlayers() {
+    gameState.playersTeamA = funnyPlayersTeamA.map((playerData, index) => {
+        const position = advancedConfig.positions[playerData.position];
+        const baseSkills = advancedConfig.baseSkills[playerData.position];
+        
+        return {
+            id: `a-${index}`,
+            name: playerData.name,
+            position: playerData.position,
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            skills: {
+                speed: baseSkills.speed * (0.8 + Math.random() * 0.4),
+                shot: baseSkills.shot * (0.8 + Math.random() * 0.4),
+                defense: baseSkills.defense * (0.8 + Math.random() * 0.4),
+                stamina: baseSkills.stamina * (0.8 + Math.random() * 0.4)
+            },
+            effectiveSkills: {},
+            stats: {
+                goals: 0,
+                shots: 0,
+                passes: 0,
+                tackles: 0,
+                distance: 0,
+                stamina: 100
+            },
+            isGoalkeeper: playerData.position === 'goalkeeper',
+            lastPosition: { x: 0, y: 0 },
+            state: 'normal' // 'normal', 'attacking', 'defending', 'tired'
+        };
+    });
+
+    gameState.playersTeamB = funnyPlayersTeamB.map((playerData, index) => {
+        const position = advancedConfig.positions[playerData.position];
+        const baseSkills = advancedConfig.baseSkills[playerData.position];
+        
+        return {
+            id: `b-${index}`,
+            name: playerData.name,
+            position: playerData.position,
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            skills: {
+                speed: baseSkills.speed * (0.8 + Math.random() * 0.4),
+                shot: baseSkills.shot * (0.8 + Math.random() * 0.4),
+                defense: baseSkills.defense * (0.8 + Math.random() * 0.4),
+                stamina: baseSkills.stamina * (0.8 + Math.random() * 0.4)
+            },
+            effectiveSkills: {},
+            stats: {
+                goals: 0,
+                shots: 0,
+                passes: 0,
+                tackles: 0,
+                distance: 0,
+                stamina: 100
+            },
+            isGoalkeeper: playerData.position === 'goalkeeper',
+            lastPosition: { x: 0, y: 0 },
+            state: 'normal'
+        };
+    });
+}
+
+// Posicionar jogadores no campo
+function positionPlayers() {
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+    
+    // Posicionar time A (esquerda)
+    gameState.playersTeamA.forEach((player, index) => {
+        const position = advancedConfig.positions[player.position];
+        
+        if (player.position === 'goalkeeper') {
+            player.x = fieldWidth * 0.1;
+            player.y = fieldHeight * position.y;
+        } else {
+            player.x = fieldWidth * position.x * 0.5;
+            const yVariation = (index % 2 === 0 ? -1 : 1) * position.yVariation;
+            player.y = fieldHeight * (0.5 + yVariation * 0.3);
+        }
+        
+        player.lastPosition = { x: player.x, y: player.y };
+        player.targetX = player.x;
+        player.targetY = player.y;
+    });
+
+    // Posicionar time B (direita)
+    gameState.playersTeamB.forEach((player, index) => {
+        const position = advancedConfig.positions[player.position];
+        
+        if (player.position === 'goalkeeper') {
+            player.x = fieldWidth * 0.9;
+            player.y = fieldHeight * position.y;
+        } else {
+            player.x = fieldWidth * (1 - position.x * 0.5);
+            const yVariation = (index % 2 === 0 ? -1 : 1) * position.yVariation;
+            player.y = fieldHeight * (0.5 + yVariation * 0.3);
+        }
+        
+        player.lastPosition = { x: player.x, y: player.y };
+        player.targetX = player.x;
+        player.targetY = player.y;
+    });
+
+    // Posicionar bola no centro
+    gameState.ball = {
+        x: fieldWidth / 2,
+        y: fieldHeight / 2,
+        vx: 0,
+        vy: 0,
+        owner: null,
+        lastOwner: null,
+        friction: gameState.ball.friction,
+        trajectory: []
+    };
+}
+
+// Renderizar jogadores e bola
+function renderPlayersAndBall() {
+    // Limpar elementos existentes (exceto linhas do campo)
+    const existingPlayers = document.querySelectorAll('.team, .ball, .ball-trajectory');
+    existingPlayers.forEach(el => el.remove());
+    
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+
+    // Renderizar trajetória da bola
+    gameState.ball.trajectory.forEach((point, index) => {
+        if (index % 5 === 0) { // Renderizar apenas alguns pontos para performance
+            const trajectoryPoint = document.createElement('div');
+            trajectoryPoint.className = 'ball-trajectory';
+            trajectoryPoint.style.left = `${point.x - 3}px`;
+            trajectoryPoint.style.top = `${point.y - 3}px`;
+            trajectoryPoint.style.opacity = index / gameState.ball.trajectory.length;
+            elements.field.appendChild(trajectoryPoint);
+        }
+    });
+
+    // Renderizar time A
+    gameState.playersTeamA.forEach(player => {
+        const playerElement = document.createElement('div');
+        playerElement.className = `team team-a ${player.position}`;
+        if (player.isGoalkeeper) playerElement.classList.add('goalkeeper');
+        playerElement.id = player.id;
+        playerElement.style.left = `${player.x - 20}px`;
+        playerElement.style.top = `${player.y - 20}px`;
+        playerElement.textContent = player.name.split(' ')[0];
+        playerElement.title = `${player.name}\nPosição: ${player.position}\nVelocidade: ${Math.round(player.effectiveSkills.speed * 100)}%\nChute: ${Math.round(player.effectiveSkills.shot * 100)}%\nDefesa: ${Math.round(player.effectiveSkills.defense * 100)}%`;
+        elements.field.appendChild(playerElement);
+    });
+
+    // Renderizar time B
+    gameState.playersTeamB.forEach(player => {
+        const playerElement = document.createElement('div');
+        playerElement.className = `team team-b ${player.position}`;
+        if (player.isGoalkeeper) playerElement.classList.add('goalkeeper');
+        playerElement.id = player.id;
+        playerElement.style.left = `${player.x - 20}px`;
+        playerElement.style.top = `${player.y - 20}px`;
+        playerElement.textContent = player.name.split(' ')[0];
+        playerElement.title = `${player.name}\nPosição: ${player.position}\nVelocidade: ${Math.round(player.effectiveSkills.speed * 100)}%\nChute: ${Math.round(player.effectiveSkills.shot * 100)}%\nDefesa: ${Math.round(player.effectiveSkills.defense * 100)}%`;
+        elements.field.appendChild(playerElement);
+    });
+
+    // Renderizar bola
+    const ballElement = document.createElement('div');
+    ballElement.className = 'ball';
+    ballElement.style.left = `${gameState.ball.x - 10}px`;
+    ballElement.style.top = `${gameState.ball.y - 10}px`;
+    
+    // Adicionar efeito de rotação baseado na velocidade
+    const speed = Math.sqrt(gameState.ball.vx * gameState.ball.vx + gameState.ball.vy * gameState.ball.vy);
+    if (speed > 5) {
+        const angle = Math.atan2(gameState.ball.vy, gameState.ball.vx) * 180 / Math.PI;
+        ballElement.style.transform = `rotate(${angle}deg)`;
+    }
+    
+    elements.field.appendChild(ballElement);
+}
+
+// Loop principal de animação
+function gameAnimationLoop(timestamp) {
+    if (!gameState.lastUpdateTime) {
+        gameState.lastUpdateTime = timestamp;
+    }
+    
+    const deltaTime = timestamp - gameState.lastUpdateTime;
+    gameState.lastUpdateTime = timestamp;
+    
+    if (gameState.isMatchRunning && !gameState.isPaused) {
+        // Atualizar física do jogo
+        updatePhysics(deltaTime);
+        
+        // Atualizar inteligência artificial
+        updateAI();
+        
+        // Verificar eventos do jogo
+        checkGameEvents();
+        
+        // Atualizar estatísticas
+        updateStats(deltaTime);
+        
+        // Renderizar
+        renderPlayersAndBall();
+    }
+    
+    requestAnimationFrame(gameAnimationLoop);
+}
+
+// Atualizar física do jogo
+function updatePhysics(deltaTime) {
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+    const timeFactor = deltaTime / 16; // Normalizar para ~60fps
+    
+    // Mover jogadores
+    gameState.playersTeamA.forEach(player => {
+        movePlayer(player, timeFactor, fieldWidth, fieldHeight);
+    });
+    
+    gameState.playersTeamB.forEach(player => {
+        movePlayer(player, timeFactor, fieldWidth, fieldHeight);
+    });
+    
+    // Mover bola
+    moveBall(timeFactor, fieldWidth, fieldHeight);
+    
+    // Atualizar trajetória da bola
+    updateBallTrajectory();
+}
+
+// Mover um jogador
+function movePlayer(player, timeFactor, fieldWidth, fieldHeight) {
+    // Calcular distância até o alvo
+    const dx = player.targetX - player.x;
+    const dy = player.targetY - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Atualizar estatística de distância percorrida
+    player.stats.distance += distance * 0.1;
+    
+    // Reduzir stamina baseado no movimento
+    if (distance > 2) {
+        player.stats.stamina -= 0.05 * timeFactor;
+        if (player.stats.stamina < 0) player.stats.stamina = 0;
+    } else {
+        // Recuperar stamina quando parado
+        player.stats.stamina += 0.02 * timeFactor;
+        if (player.stats.stamina > 100) player.stats.stamina = 100;
+    }
+    
+    // Ajustar velocidade baseado na stamina
+    const staminaFactor = 0.5 + (player.stats.stamina / 100) * 0.5;
+    const speed = player.effectiveSkills.speed * 2 * staminaFactor;
+    
+    if (distance > 2) {
+        // Mover em direção ao alvo
+        player.x += (dx / distance) * speed * timeFactor;
+        player.y += (dy / distance) * speed * timeFactor;
+        
+        // Atualizar última posição
+        player.lastPosition.x = player.x;
+        player.lastPosition.y = player.y;
+    }
+    
+    // Manter dentro do campo
+    player.x = Math.max(20, Math.min(fieldWidth - 20, player.x));
+    player.y = Math.max(20, Math.min(fieldHeight - 20, player.y));
+}
+
+// Mover bola
+function moveBall(timeFactor, fieldWidth, fieldHeight) {
+    if (gameState.ball.owner) {
+        // Bola está com um jogador
+        const player = [...gameState.playersTeamA, ...gameState.playersTeamB]
+                      .find(p => p.id === gameState.ball.owner);
+        
+        if (player) {
+            gameState.ball.x = player.x;
+            gameState.ball.y = player.y;
+            gameState.ball.vx = 0;
+            gameState.ball.vy = 0;
+        }
+    } else {
+        // Bola livre - aplicar física
+        gameState.ball.x += gameState.ball.vx * timeFactor;
+        gameState.ball.y += gameState.ball.vy * timeFactor;
+        
+        // Aplicar atrito
+        gameState.ball.vx *= Math.pow(gameState.ball.friction, timeFactor);
+        gameState.ball.vy *= Math.pow(gameState.ball.friction, timeFactor);
+        
+        // Verificar colisão com bordas
+        if (gameState.ball.x <= 10 || gameState.ball.x >= fieldWidth - 10) {
+            gameState.ball.vx *= -0.8; // ricochete
+            addMessage(`A bola bateu na ${gameState.ball.x <= 10 ? 'esquerda' : 'direita'}!`);
+        }
+        
+        if (gameState.ball.y <= 10 || gameState.ball.y >= fieldHeight - 10) {
+            gameState.ball.vy *= -0.8; // ricochete
+            addMessage(`A bola bateu no ${gameState.ball.y <= 10 ? 'alto' : 'baixo'}!`);
+        }
+        
+        // Garantir que a bola não saia do campo
+        gameState.ball.x = Math.max(10, Math.min(fieldWidth - 10, gameState.ball.x));
+        gameState.ball.y = Math.max(10, Math.min(fieldHeight - 10, gameState.ball.y));
+        
+        // Verificar se a bola parou
+        const speed = Math.sqrt(gameState.ball.vx * gameState.ball.vx + gameState.ball.vy * gameState.ball.vy);
+        if (speed < 0.5) {
+            gameState.ball.vx = 0;
+            gameState.ball.vy = 0;
+        }
+    }
+}
+
+// Atualizar trajetória da bola
+function updateBallTrajectory() {
+    // Adicionar ponto atual à trajetória
+    gameState.ball.trajectory.push({
+        x: gameState.ball.x,
+        y: gameState.ball.y,
+        time: Date.now()
+    });
+    
+    // Manter apenas os pontos recentes (últimos 2 segundos)
+    const now = Date.now();
+    gameState.ball.trajectory = gameState.ball.trajectory.filter(
+        point => now - point.time < 2000
+    );
+}
+
+// Atualizar inteligência artificial
+function updateAI() {
+    // Atualizar time A
+    gameState.playersTeamA.forEach(player => {
+        updatePlayerAI(player, true);
+    });
+    
+    // Atualizar time B
+    gameState.playersTeamB.forEach(player => {
+        updatePlayerAI(player, false);
+    });
+    
+    // Atualizar posse de bola
+    updatePossessionStats();
+    
+    // Atualizar odds das apostas
+    updateBettingOdds();
+}
+
+// Atualizar IA de um jogador específico
+function updatePlayerAI(player, isTeamA) {
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+    const position = advancedConfig.positions[player.position];
+    
+    // Comportamento baseado na posição e situação do jogo
+    if (player.id === gameState.ball.owner) {
+        // Jogador tem a bola
+        player.state = 'attacking';
+        
+        if (player.position === 'goalkeeper') {
+            // Goleiro com a bola - chutar para frente
+            if (Math.random() < 0.05) {
+                kickBall(player, isTeamA ? fieldWidth : 0, fieldHeight / 2, 1.0);
+                addMessage(`${player.name} chuta a bola para frente!`);
+            }
+        } else if (player.position === 'defender') {
+            // Defensor com a bola - passar para o meio
+            if (Math.random() < 0.1) {
+                const teammates = isTeamA ? gameState.playersTeamA : gameState.playersTeamB;
+                const midfielders = teammates.filter(p => p.position === 'midfielder' && p.id !== player.id);
+                
+                if (midfielders.length > 0) {
+                    const target = midfielders[Math.floor(Math.random() * midfielders.length)];
+                    passBall(player, target);
+                }
+            }
+        } else {
+            // Atacante/meia com a bola - chutar ou driblar
+            if (Math.random() < 0.1) {
+                // Chance de chutar
+                const goalX = isTeamA ? fieldWidth : 0;
+                const goalY = fieldHeight / 2;
+                const distance = Math.sqrt(
+                    Math.pow(goalX - player.x, 2) + 
+                    Math.pow(goalY - player.y, 2)
+                );
+                
+                // Probabilidade de chutar aumenta perto do gol
+                const shootProbability = 0.2 + (1 - distance / fieldWidth) * 0.8 * player.effectiveSkills.shot;
+                
+                if (Math.random() < shootProbability) {
+                    shootAtGoal(player, isTeamA);
+                }
+            } else if (Math.random() < 0.2) {
+                // Chance de passar
+                const teammates = isTeamA ? gameState.playersTeamA : gameState.playersTeamB;
+                const availableTeammates = teammates.filter(p => p.id !== player.id);
+                
+                if (availableTeammates.length > 0) {
+                    const target = availableTeammates[Math.floor(Math.random() * availableTeammates.length)];
+                    passBall(player, target);
+                }
+            }
+        }
+        
+        // Mover em direção ao gol adversário
+        player.targetX = isTeamA ? fieldWidth * 0.9 : fieldWidth * 0.1;
+        player.targetY = fieldHeight / 2 + (Math.random() - 0.5) * 100;
+    } else {
+        // Jogador sem a bola
+        const ballDistance = Math.sqrt(
+            Math.pow(gameState.ball.x - player.x, 2) + 
+            Math.pow(gameState.ball.y - player.y, 2)
+        );
+        
+        if (ballDistance < 200) {
+            // Perto da bola - tentar pegar
+            player.state = 'defending';
+            
+            if (gameState.ball.owner) {
+                // Bola está com outro jogador
+                const owner = [...gameState.playersTeamA, ...gameState.playersTeamB]
+                             .find(p => p.id === gameState.ball.owner);
+                
+                if (owner && ((isTeamA && owner.id.startsWith('b-')) || (!isTeamA && owner.id.startsWith('a-'))) {
+                    // Bola está com adversário - marcar
+                    player.targetX = owner.x + (Math.random() - 0.5) * 30;
+                    player.targetY = owner.y + (Math.random() - 0.5) * 30;
+                    
+                    // Tentar tackle
+                    if (ballDistance < 50 && Math.random() < 0.05 * player.effectiveSkills.defense) {
+                        attemptTackle(player, owner);
+                    }
+                } else {
+                    // Bola está com companheiro - se posicionar
+                    player.targetX = gameState.ball.x + (Math.random() - 0.5) * 100;
+                    player.targetY = gameState.ball.y + (Math.random() - 0.5) * 100;
+                }
+            } else {
+                // Bola solta - correr atrás
+                player.targetX = gameState.ball.x + (Math.random() - 0.5) * 20;
+                player.targetY = gameState.ball.y + (Math.random() - 0.5) * 20;
+                
+                // Tentar pegar a bola
+                if (ballDistance < 30 && Math.random() < 0.3) {
+                    attemptBallControl(player);
+                }
+            }
+        } else {
+            // Longe da bola - posicionamento tático
+            player.state = 'normal';
+            
+            if (player.position === 'goalkeeper') {
+                // Goleiro - ficar perto do gol
+                player.targetX = isTeamA ? fieldWidth * 0.1 : fieldWidth * 0.9;
+                player.targetY = fieldHeight / 2 + (Math.random() - 0.5) * 50;
+            } else {
+                // Outros jogadores - manter formação
+                const baseX = isTeamA ? position.x * 0.5 : 1 - position.x * 0.5;
+                const baseY = 0.5 + (player.id.includes('-1') || player.id.includes('-3') ? -0.2 : 0.2);
+                
+                // Ajustar posição baseado no movimento da bola
+                const ballInfluenceX = (gameState.ball.x / fieldWidth - 0.5) * 0.3;
+                const ballInfluenceY = (gameState.ball.y / fieldHeight - 0.5) * 0.3;
+                
+                player.targetX = fieldWidth * (baseX + ballInfluenceX);
+                player.targetY = fieldHeight * (baseY + ballInfluenceY);
+            }
+        }
+    }
+}
+
+// Tentar pegar a bola
+function attemptBallControl(player) {
+    if (!gameState.ball.owner) {
+        const dx = player.x - gameState.ball.x;
+        const dy = player.y - gameState.ball.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < 30) {
+            // Chance de controlar a bola baseada na habilidade
+            const controlProbability = 0.5 * player.effectiveSkills.defense;
+            
+            if (Math.random() < controlProbability) {
+                gameState.ball.owner = player.id;
+                addMessage(`${player.name} controla a bola!`);
+                
+                // Registrar tackle se estava com adversário
+                if (gameState.ball.lastOwner && 
+                    ((player.id.startsWith('a-') && gameState.ball.lastOwner.startsWith('b-')) || 
+                    (player.id.startsWith('b-') && gameState.ball.lastOwner.startsWith('a-'))) {
+                    player.stats.tackles++;
+                    
+                    const opponent = [...gameState.playersTeamA, ...gameState.playersTeamB]
+                                  .find(p => p.id === gameState.ball.lastOwner);
+                    if (opponent) {
+                        opponent.stats.stamina -= 10; // Cansaço por perder a bola
+                        if (opponent.stats.stamina < 0) opponent.stats.stamina = 0;
+                    }
+                }
+                
+                gameState.ball.lastOwner = player.id;
+            }
+        }
+    }
+}
+
+// Tentar tackle
+function attemptTackle(player, opponent) {
+    const tackleProbability = 0.3 * player.effectiveSkills.defense * 
+                           (1 - opponent.effectiveSkills.speed);
+    
+    if (Math.random() < tackleProbability) {
+        // Tackle bem sucedido
+        gameState.ball.owner = null;
+        gameState.ball.vx = (Math.random() - 0.5) * 5;
+        gameState.ball.vy = (Math.random() - 0.5) * 5;
+        
+        player.stats.tackles++;
+        opponent.stats.stamina -= 15;
+        if (opponent.stats.stamina < 0) opponent.stats.stamina = 0;
+        
+        addMessage(`${player.name} tira a bola de ${opponent.name}!`);
+        
+        // Chance de falta
+        if (Math.random() < 0.2) {
+            addMessage(`Falta cometida por ${player.name}!`);
+            if (player.id.startsWith('a-')) {
+                gameState.stats.foulsTeamA++;
+            } else {
+                gameState.stats.foulsTeamB++;
+            }
+        }
+    } else {
+        // Tackle falhou
+        addMessage(`${player.name} erra o tackle em ${opponent.name}!`);
+        player.stats.stamina -= 10;
+        if (player.stats.stamina < 0) player.stats.stamina = 0;
+    }
+}
+
+// Chutar a bola
+function kickBall(player, targetX, targetY, powerMultiplier = 1.0) {
+    const dx = targetX - player.x;
+    const dy = targetY - player.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Base power based on player skill and stamina
+    const basePower = 10 + player.effectiveSkills.shot * 10;
+    const power = basePower * powerMultiplier * (0.9 + Math.random() * 0.2);
+    
+    gameState.ball.vx = (dx / distance) * power;
+    gameState.ball.vy = (dy / distance) * power;
+    gameState.ball.owner = null;
+    gameState.ball.lastOwner = player.id;
+    
+    // Mostrar efeito de chute
+    showShotEffect();
+    
+    // Registrar estatística
+    player.stats.shots++;
+    
+    // Atualizar time apropriado
+    if (player.id.startsWith('a-')) {
+        gameState.stats.shotsTeamA++;
+    } else {
+        gameState.stats.shotsTeamB++;
+    }
+}
+
+// Chutar para o gol
+function shootAtGoal(player, isTeamA) {
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+    
+    const goalX = isTeamA ? fieldWidth : 0;
+    const goalY = fieldHeight / 2 + (Math.random() - 0.5) * 50;
+    
+    // Power based on distance
+    const distance = Math.sqrt(
+        Math.pow(goalX - player.x, 2) + 
+        Math.pow(goalY - player.y, 2)
+    );
+    const distanceFactor = 0.5 + (1 - distance / fieldWidth) * 0.5;
+    
+    kickBall(player, goalX, goalY, distanceFactor * player.effectiveSkills.shot);
+    addMessage(`${player.name} chuta para o gol!`);
+}
+
+// Passar a bola
+function passBall(player, teammate) {
+    const passAccuracy = 0.7 + player.effectiveSkills.shot * 0.3;
+    
+    if (Math.random() < passAccuracy) {
+        // Passe bem sucedido
+        kickBall(player, teammate.x, teammate.y, 0.8);
+        addMessage(`${player.name} passa para ${teammate.name}!`);
+        player.stats.passes++;
+        
+        // Atualizar time apropriado
+        if (player.id.startsWith('a-')) {
+            gameState.stats.passesTeamA++;
+        } else {
+            gameState.stats.passesTeamB++;
+        }
+    } else {
+        // Passe errado
+        const missX = teammate.x + (Math.random() - 0.5) * 100;
+        const missY = teammate.y + (Math.random() - 0.5) * 100;
+        
+        kickBall(player, missX, missY, 0.8);
+        addMessage(`${player.name} erra o passe para ${teammate.name}!`);
+    }
+}
+
+// Atualizar estatísticas de posse de bola
+function updatePossessionStats() {
+    const now = Date.now();
+    
+    // Atualizar a cada segundo
+    if (now - gameState.stats.lastPossessionUpdate > 1000) {
+        gameState.stats.lastPossessionUpdate = now;
+        
+        if (gameState.ball.owner) {
+            if (gameState.ball.owner.startsWith('a-')) {
+                gameState.stats.possessionTeamA++;
+            } else {
+                gameState.stats.possessionTeamB++;
+            }
+        }
+        
+        // Calcular porcentagens
+        const total = gameState.stats.possessionTeamA + gameState.stats.possessionTeamB;
+        let percentA = 50, percentB = 50;
+        
+        if (total > 0) {
+            percentA = Math.round((gameState.stats.possessionTeamA / total) * 100);
+            percentB = 100 - percentA;
+        }
+        
+        // Atualizar UI
+        elements.possession.textContent = `Posse: ${percentA}% / ${percentB}%`;
+        elements.teamAPossession.textContent = `Posse: ${percentA}%`;
+        elements.teamBPossession.textContent = `Posse: ${percentB}%`;
+    }
+}
+
+// Atualizar odds das apostas
+function updateBettingOdds() {
+    if (!gameState.isMatchRunning || !gameState.isBettingOpen) return;
+    
+    // Base odds
+    let teamAOdds = 2.5;
+    let teamBOdds = 2.5;
+    let drawOdds = 3.0;
+    let nextGoalOdds = 1.8;
+    
+    // Ajustar baseado no placar
+    const goalDiff = gameState.matchScoreTeamA - gameState.matchScoreTeamB;
+    
+    if (goalDiff > 0) {
+        // Time A está ganhando
+        teamAOdds -= goalDiff * 0.2;
+        teamBOdds += goalDiff * 0.2;
+        drawOdds += goalDiff * 0.1;
+    } else if (goalDiff < 0) {
+        // Time B está ganhando
+        teamAOdds += Math.abs(goalDiff) * 0.2;
+        teamBOdds -= Math.abs(goalDiff) * 0.2;
+        drawOdds += Math.abs(goalDiff) * 0.1;
+    }
+    
+    // Ajustar baseado na posse de bola
+    const totalPossession = gameState.stats.possessionTeamA + gameState.stats.possessionTeamB;
+    if (totalPossession > 0) {
+        const possessionA = gameState.stats.possessionTeamA / totalPossession;
+        const possessionB = gameState.stats.possessionTeamB / totalPossession;
+        
+        teamAOdds -= (possessionA - 0.5) * 0.5;
+        teamBOdds -= (possessionB - 0.5) * 0.5;
+    }
+    
+    // Ajustar baseado no tempo restante
+    const timeLeftFactor = gameState.timeLeft / gameState.config.matchDuration;
+    teamAOdds += (1 - timeLeftFactor) * 0.5;
+    teamBOdds += (1 - timeLeftFactor) * 0.5;
+    drawOdds -= (1 - timeLeftFactor) * 0.3;
+    
+    // Garantir odds mínimas e máximas
+    teamAOdds = Math.max(1.5, Math.min(5.0, teamAOdds));
+    teamBOdds = Math.max(1.5, Math.min(5.0, teamBOdds));
+    drawOdds = Math.max(2.0, Math.min(6.0, drawOdds));
+    
+    // Próximo gol - ajustar baseado no último gol
+    const sinceLastGoal = (Date.now() - gameState.lastGoalTime) / 1000;
+    if (sinceLastGoal > 30) {
+        nextGoalOdds -= 0.2;
+    } else if (sinceLastGoal < 10) {
+        nextGoalOdds += 0.2;
+    }
+    
+    nextGoalOdds = Math.max(1.3, Math.min(3.0, nextGoalOdds));
+    
+    // Atualizar estado e UI
+    gameState.odds['team-a'] = parseFloat(teamAOdds.toFixed(2));
+    gameState.odds['team-b'] = parseFloat(teamBOdds.toFixed(2));
+    gameState.odds['draw'] = parseFloat(drawOdds.toFixed(2));
+    gameState.odds['next-goal'] = parseFloat(nextGoalOdds.toFixed(2));
+    
+    elements.oddsTeamA.textContent = gameState.odds['team-a'].toFixed(2);
+    elements.oddsTeamB.textContent = gameState.odds['team-b'].toFixed(2);
+    elements.oddsDraw.textContent = gameState.odds['draw'].toFixed(2);
+    elements.oddsNextGoal.textContent = gameState.odds['next-goal'].toFixed(2);
+}
+
+// Verificar eventos do jogo (gols, faltas, etc.)
+function checkGameEvents() {
+    const fieldWidth = elements.field.clientWidth;
+    const fieldHeight = elements.field.clientHeight;
+    
+    // Verificar gols
+    checkGoals(fieldWidth, fieldHeight);
+    
+    // Verificar posse de bola
+    checkBallOwnership();
+    
+    // Verificar faltas e cartões (simplificado)
+    if (Math.random() < 0.001) {
+        const team = Math.random() < 0.5 ? 'A' : 'B';
+        const players = team === 'A' ? gameState.playersTeamA : gameState.playersTeamB;
+        const player = players[Math.floor(Math.random() * players.length)];
+        
+        addMessage(`Falta dura de ${player.name}! Cartão amarelo!`);
+        
+        if (team === 'A') {
+            gameState.stats.foulsTeamA++;
+        } else {
+            gameState.stats.foulsTeamB++;
+        }
+    }
+}
+
+// Verificar gols
+function checkGoals(fieldWidth, fieldHeight) {
+    // Verificar gol do time B (bola entrou no gol A)
+    if (gameState.ball.x <= 20 && 
+        gameState.ball.y >= (fieldHeight/2 - 60) && 
+        gameState.ball.y <= (fieldHeight/2 + 60)) {
+        processGoal(false);
+    }
+    
+    // Verificar gol do time A (bola entrou no gol B)
+    if (gameState.ball.x >= fieldWidth - 20 && 
+        gameState.ball.y >= (fieldHeight/2 - 60) && 
+        gameState.ball.y <= (fieldHeight/2 + 60)) {
+        processGoal(true);
+    }
+}
+
+// Processar um gol
+function processGoal(isTeamA) {
+    // Atualizar placar
+    if (isTeamA) {
+        gameState.matchScoreTeamA++;
+        elements.scoreA.textContent = gameState.matchScoreTeamA;
+    } else {
+        gameState.matchScoreTeamB++;
+        elements.scoreB.textContent = gameState.matchScoreTeamB;
+    }
+    
+    // Encontrar jogador que marcou (se houver)
+    let scorer = null;
+    if (gameState.ball.lastOwner) {
+        scorer = [...gameState.playersTeamA, ...gameState.playersTeamB]
+                .find(p => p.id === gameState.ball.lastOwner);
+    }
+    
+    // Mostrar mensagem
+    if (scorer) {
+        scorer.stats.goals++;
+        addMessage(`GOOOOOOL! ${scorer.name} marca para o ${isTeamA ? gameState.config.teamAName : gameState.config.teamBName}!`, 'goal');
+    } else {
+        addMessage(`GOOOOOOL! ${isTeamA ? gameState.config.teamAName : gameState.config.teamBName} marca!`, 'goal');
+    }
+    
+    // Mostrar efeito visual
+    showGoalEffect();
+    
+    // Processar apostas de próximo gol
+    if (gameState.nextGoalBet) {
+        const bet = gameState.nextGoalBet;
+        const won = (bet.team === 'team-a' && isTeamA) || (bet.team === 'team-b' && !isTeamA);
+        
+        if (won) {
+            const winnings = Math.floor(bet.amount * gameState.odds['next-goal']);
+            gameState.config.credits += winnings;
+            addMessage(`Você ganhou ${winnings} créditos na aposta de próximo gol!`, 'bet');
+        }
+        
+        gameState.nextGoalBet = null;
+    }
+    
+    // Registrar tempo do último gol
+    gameState.lastGoalTime = Date.now();
+    
+    // Reposicionar jogadores e bola
+    positionPlayers();
+    gameState.ball.owner = null;
+    gameState.ball.vx = 0;
+    gameState.ball.vy = 0;
+}
+
+// Verificar posse de bola
+function checkBallOwnership() {
+    if (gameState.ball.owner) return;
+
+    // Verificar se algum jogador pegou a bola
+    const allPlayers = [...gameState.playersTeamA, ...gameState.playersTeamB];
+    
+    for (const player of allPlayers) {
+        const dx = player.x - gameState.ball.x;
+        const dy = player.y - gameState.ball.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < 30) {
+            // Chance de pegar a bola baseada na habilidade
+            const controlProbability = 0.5 * player.effectiveSkills.defense;
+            
+            if (Math.random() < controlProbability) {
+                gameState.ball.owner = player.id;
+                gameState.ball.lastOwner = player.id;
+                
+                // Adicionar mensagem sobre a posse de bola
+                const team = player.id.startsWith('a-') ? gameState.config.teamAName : gameState.config.teamBName;
+                addMessage(`${player.name} (${team}) pegou a bola!`);
+                
+                break;
+            }
+        }
+    }
+}
+
+// Mostrar efeito de gol
+function showGoalEffect() {
+    elements.goalEffect.style.display = 'block';
+    setTimeout(() => {
+        elements.goalEffect.style.display = 'none';
+    }, 1500);
+}
+
+// Mostrar efeito de chute
+function showShotEffect() {
+    elements.shotEffect.style.display = 'block';
+    setTimeout(() => {
+        elements.shotEffect.style.display = 'none';
+    }, 500);
+}
+
+// Atualizar estatísticas na UI
+function updateStats(deltaTime) {
+    // Time A
+    updateTeamStats(gameState.playersTeamA, elements.teamAStats);
+    
+    // Time B
+    updateTeamStats(gameState.playersTeamB, elements.teamBStats);
+    
+    // Atualizar créditos
+    elements.playerCredits.textContent = `Créditos: ${gameState.config.credits}`;
+    
+    // Atualizar apostas ativas
+    elements.activeBets.textContent = gameState.activeBets.length;
+}
+
+// Atualizar estatísticas de um time
+function updateTeamStats(players, container) {
+    container.innerHTML = `
+        <div class="stats-header">
+            <h3>${players[0].id.startsWith('a-') ? gameState.config.teamAName : gameState.config.teamBName} - Estatísticas</h3>
+            <div>${players[0].id.startsWith('a-') ? 'Posse: ' + container.querySelector('.stats-header div')?.textContent.split(': ')[1] || '0%' : ''}</div>
+        </div>
+        <div class="player-stat">
+            <span class="stat-name">Finalizações:</span>
+            <span class="stat-value">${players[0].id.startsWith('a-') ? gameState.stats.shotsTeamA : gameState.stats.shotsTeamB}</span>
+        </div>
+        <div class="player-stat">
+            <span class="stat-name">Passes:</span>
+            <span class="stat-value">${players[0].id.startsWith('a-') ? gameState.stats.passesTeamA : gameState.stats.passesTeamB}</span>
+        </div>
+        <div class="player-stat">
+            <span class="stat-name">Desarmes:</span>
+            <span class="stat-value">${players[0].id.startsWith('a-') ? gameState.stats.tacklesTeamA : gameState.stats.tacklesTeamB}</span>
+        </div>
+        <div class="player-stat">
+            <span class="stat-name">Faltas:</span>
+            <span class="stat-value">${players[0].id.startsWith('a-') ? gameState.stats.foulsTeamA : gameState.stats.foulsTeamB}</span>
+        </div>
+    `;
+    
+    // Adicionar estatísticas individuais
+    players.forEach(player => {
+        const playerStat = document.createElement('div');
+        playerStat.className = 'player-stat';
+        playerStat.innerHTML = `
+            <span class="stat-name">${player.name}:</span>
+            <span class="stat-value">G:${player.stats.goals} S:${player.stats.shots} P:${player.stats.passes} T:${player.stats.tackles}</span>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: ${player.stats.stamina}%"></div>
+            </div>
+        `;
+        container.appendChild(playerStat);
+    });
+}
+
+// Adicionar mensagem ao painel
+function addMessage(text, type = 'normal') {
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${type}-message`;
+    messageElement.textContent = text;
+    elements.messages.appendChild(messageElement);
+    elements.messages.scrollTop = elements.messages.scrollHeight;
+}
+
+// Fazer uma aposta
+function placeBet(type) {
+    if (!gameState.isMatchRunning || !gameState.isBettingOpen) {
+        addMessage('Apostas não estão abertas no momento!', 'important');
+        return;
+    }
+    
+    // Verificar créditos
+    if (gameState.config.credits < 100) {
+        addMessage('Créditos insuficientes para apostar! Mínimo: 100', 'important');
+        return;
+    }
+    
+    // Valor da aposta (fixo por simplicidade)
+    const betAmount = 100;
+    
+    // Verificar tipo de aposta
+    if (type === 'next-goal') {
+        if (gameState.nextGoalBet) {
+            addMessage('Você já tem uma aposta ativa no próximo gol!', 'important');
+            return;
+        }
+        
+        // Perguntar em qual time apostar
+        const team = Math.random() < 0.5 ? 'team-a' : 'team-b'; // Simulando escolha do jogador
+        
+        gameState.nextGoalBet = {
+            type: 'next-goal',
+            team: team,
+            amount: betAmount,
+            odds: gameState.odds['next-goal'],
+            match: gameState.currentMatch,
+            time: gameState.config.matchDuration - gameState.timeLeft
+        };
+        
+        gameState.config.credits -= betAmount;
+        addMessage(`Aposta de ${betAmount} créditos no próximo gol do ${team === 'team-a' ? gameState.config.teamAName : gameState.config.teamBName} (Odd: ${gameState.odds['next-goal'].toFixed(2)})`, 'bet');
+    } else {
+        // Aposta normal (time vencedor ou empate)
+        gameState.bets.push({
+            type: type,
+            amount: betAmount,
+            odds: gameState.odds[type],
+            match: gameState.currentMatch,
+            time: gameState.config.matchDuration - gameState.timeLeft,
+            scoreA: gameState.matchScoreTeamA,
+            scoreB: gameState.matchScoreTeamB
+        });
+        
+        gameState.activeBets.push({
+            type: type,
+            amount: betAmount,
+            odds: gameState.odds[type]
+        });
+        
+        gameState.config.credits -= betAmount;
+        
+        const betType = {
+            'team-a': gameState.config.teamAName,
+            'team-b': gameState.config.teamBName,
+            'draw': 'Empate'
+        }[type];
+        
+        addMessage(`Aposta de ${betAmount} créditos no ${betType} (Odd: ${gameState.odds[type].toFixed(2)})`, 'bet');
+    }
+    
+    updateUI();
+}
+
+// Processar resultados das apostas
+function processBetResults() {
+    if (gameState.bets.length === 0 && !gameState.nextGoalBet) return;
+    
+    const currentMatch = gameState.currentMatch;
+    const matchResult = gameState.matchResults.find(m => m.match === currentMatch);
+    
+    if (!matchResult) return;
+    
+    // Processar apostas normais
+    gameState.bets.forEach(bet => {
+        if (bet.match === currentMatch) {
+            let won = false;
+            
+            if (bet.type === 'team-a' && matchResult.winner === 'team-a') {
+                won = true;
+            } else if (bet.type === 'team-b' && matchResult.winner === 'team-b') {
+                won = true;
+            } else if (bet.type === 'draw' && matchResult.winner === 'draw') {
+                won = true;
+            }
+            
+            if (won) {
+                const winnings = Math.floor(bet.amount * bet.odds);
+                gameState.config.credits += winnings;
+                addMessage(`Aposta ganha! +${winnings} créditos (${bet.type} @ ${bet.odds.toFixed(2)})`, 'bet');
+            }
+        }
+    });
+    
+    // Limpar apostas ativas
+    gameState.activeBets = [];
+    
+    updateUI();
+}
+
+// Mostrar histórico de apostas
+function showBetHistory() {
+    elements.betHistory.innerHTML = '';
+    
+    if (gameState.bets.length === 0 && !gameState.nextGoalBet) {
+        elements.betHistory.innerHTML = '<p>Nenhuma aposta foi feita ainda.</p>';
+        return;
+    }
+    
+    const historyElement = document.createElement('div');
+    
+    // Apostas ativas
+    if (gameState.nextGoalBet || gameState.activeBets.length > 0) {
+        const activeHeader = document.createElement('h3');
+        activeHeader.textContent = 'Apostas Ativas';
+        historyElement.appendChild(activeHeader);
+        
+        if (gameState.nextGoalBet) {
+            const bet = gameState.nextGoalBet;
+            const betElement = document.createElement('div');
+            betElement.className = 'bet-history-item';
+            betElement.innerHTML = `
+                <p><strong>Próximo Gol:</strong> ${bet.team === 'team-a' ? gameState.config.teamAName : gameState.config.teamBName}</p>
+                <p>Valor: ${bet.amount} | Odd: ${bet.odds.toFixed(2)} | Tempo: ${formatTime(bet.time)}</p>
+            `;
+            historyElement.appendChild(betElement);
+        }
+        
+        gameState.activeBets.forEach(bet => {
+            const betElement = document.createElement('div');
+            betElement.className = 'bet-history-item';
+            betElement.innerHTML = `
+                <p><strong>${bet.type === 'team-a' ? gameState.config.teamAName : bet.type === 'team-b' ? gameState.config.teamBName : 'Empate'}</strong></p>
+                <p>Valor: ${bet.amount} | Odd: ${bet.odds.toFixed(2)}</p>
+            `;
+            historyElement.appendChild(betElement);
+        });
+    }
+    
+    // Histórico de apostas
+    if (gameState.bets.length > 0) {
+        const historyHeader = document.createElement('h3');
+        historyHeader.textContent = 'Histórico';
+        historyElement.appendChild(historyHeader);
+        
+        gameState.bets.forEach(bet => {
+            const matchResult = gameState.matchResults.find(m => m.match === bet.match);
+            let resultText = 'Pendente';
+            let resultClass = '';
+            
+            if (matchResult) {
+                const won = (bet.type === 'team-a' && matchResult.winner === 'team-a') || 
+                           (bet.type === 'team-b' && matchResult.winner === 'team-b') || 
+                           (bet.type === 'draw' && matchResult.winner === 'draw');
+                
+                if (won) {
+                    resultText = `Ganhou +${Math.floor(bet.amount * bet.odds)}`;
+                    resultClass = 'bet-won';
+                } else {
+                    resultText = 'Perdeu';
+                    resultClass = 'bet-lost';
+                }
+            }
+            
+            const betElement = document.createElement('div');
+            betElement.className = `bet-history-item ${resultClass}`;
+            betElement.innerHTML = `
+                <p><strong>Partida ${bet.match}:</strong> ${bet.type === 'team-a' ? gameState.config.teamAName : bet.type === 'team-b' ? gameState.config.teamBName : 'Empate'}</p>
+                <p>Valor: ${bet.amount} | Odd: ${bet.odds.toFixed(2)} | Tempo: ${formatTime(bet.time)}</p>
+                <p>Placar: ${bet.scoreA} x ${bet.scoreB} | Resultado: ${resultText}</p>
+            `;
+            historyElement.appendChild(betElement);
+        });
+    }
+    
+    elements.betHistory.appendChild(historyElement);
+}
+
+// Iniciar partida
+function startMatch() {
+    if (gameState.isMatchRunning) return;
+    
+    // Resetar estado da partida
+    gameState.matchScoreTeamA = 0;
+    gameState.matchScoreTeamB = 0;
+    gameState.timeLeft = gameState.config.matchDuration;
+    gameState.isMatchRunning = true;
+    gameState.isPaused = false;
+    gameState.isBettingOpen = true;
+    gameState.stats = {
+        possessionTeamA: 0,
+        possessionTeamB: 0,
+        lastPossessionUpdate: Date.now(),
+        shotsTeamA: 0,
+        shotsTeamB: 0,
+        passesTeamA: 0,
+        passesTeamB: 0,
+        tacklesTeamA: 0,
+        tacklesTeamB: 0,
+        foulsTeamA: 0,
+        foulsTeamB: 0
+    };
+    
+    // Atualizar UI
+    elements.scoreA.textContent = '0';
+    elements.scoreB.textContent = '0';
+    elements.matchPhase.textContent = '1º Tempo';
+    elements.startBtn.style.display = 'none';
+    elements.pauseBtn.style.display = 'block';
+    elements.restartBtn.style.display = 'block';
+    elements.nextMatchBtn.style.display = 'none';
+    elements.betStatus.textContent = `Apostas abertas - Tempo restante: ${gameState.timeLeft - gameState.config.bettingCutoff}s`;
+    
+    // Posicionar jogadores
+    positionPlayers();
+    
+    // Iniciar temporizador
+    gameState.timerInterval = setInterval(updateTimer, 1000);
+    
+    // Adicionar mensagem
+    addMessage(`Partida ${gameState.currentMatch} começou! Apostas abertas até os últimos ${gameState.config.bettingCutoff} segundos.`, 'important');
+}
+
+// Pausar partida
+function pauseMatch() {
+    if (!gameState.isMatchRunning) return;
+    
+    gameState.isPaused = !gameState.isPaused;
+    
+    if (gameState.isPaused) {
+        clearInterval(gameState.timerInterval);
+        elements.pauseBtn.textContent = 'Continuar';
+        addMessage('Jogo pausado.', 'important');
+    } else {
+        gameState.timerInterval = setInterval(updateTimer, 1000);
+        elements.pauseBtn.textContent = 'Pausar';
+        addMessage('Jogo continuado.', 'important');
+    }
+}
+
+// Atualizar temporizador
+function updateTimer() {
+    gameState.timeLeft--;
+    
+    // Atualizar UI do temporizador
+    updateTimerUI();
+    
+    // Verificar se o tempo de apostas acabou
+    if (gameState.timeLeft <= gameState.config.bettingCutoff && gameState.isBettingOpen) {
+        gameState.isBettingOpen = false;
+        elements.betStatus.textContent = 'Apostas encerradas!';
+        addMessage(`Apostas encerradas aos ${gameState.config.bettingCutoff} segundos finais.`, 'important');
+    }
+    
+    // Verificar fim do primeiro tempo
+    if (gameState.isFirstHalf && gameState.timeLeft <= gameState.config.matchDuration / 2) {
+        gameState.isFirstHalf = false;
+        elements.matchPhase.textContent = '2º Tempo';
+        addMessage('Fim do primeiro tempo!', 'important');
+        
+        // Pequena pausa entre tempos
+        setTimeout(() => {
+            addMessage('Início do segundo tempo!', 'important');
+        }, 2000);
+    }
+    
+    // Verificar se o tempo acabou
+    if (gameState.timeLeft <= 0) {
+        endMatch();
+    }
+}
+
+// Atualizar UI do temporizador
+function updateTimerUI() {
+    const minutes = Math.floor(gameState.timeLeft / 60);
+    const seconds = gameState.timeLeft % 60;
+    elements.timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (gameState.isBettingOpen) {
+        elements.betStatus.textContent = `Apostas abertas - Tempo restante: ${gameState.timeLeft - gameState.config.bettingCutoff}s`;
+    }
+}
+
+// Finalizar partida
+function endMatch() {
+    clearInterval(gameState.timerInterval);
+    gameState.isMatchRunning = false;
+    gameState.isBettingOpen = false;
+    
+    // Atualizar placar geral
+    gameState.scoreTeamA += gameState.matchScoreTeamA;
+    gameState.scoreTeamB += gameState.matchScoreTeamB;
+    
+    // Registrar resultado da partida
+    gameState.matchResults.push({
+        match: gameState.currentMatch,
+        scoreTeamA: gameState.matchScoreTeamA,
+        scoreTeamB: gameState.matchScoreTeamB,
+        winner: gameState.matchScoreTeamA > gameState.matchScoreTeamB ? 'team-a' : 
+               gameState.matchScoreTeamB > gameState.matchScoreTeamA ? 'team-b' : 'draw'
+    });
+    
+    // Processar apostas
+    processBetResults();
+    
+    // Adicionar mensagem
+    addMessage(`Fim da partida ${gameState.currentMatch}! Placar: ${gameState.config.teamAName} ${gameState.matchScoreTeamA} x ${gameState.matchScoreTeamB} ${gameState.config.teamBName}`, 'important');
+    
+    // Verificar se há mais partidas
+    if (gameState.currentMatch < gameState.config.totalMatches) {
+        elements.nextMatchBtn.style.display = 'block';
+    } else {
+        endGame();
+    }
+    
+    // Atualizar UI
+    elements.startBtn.style.display = 'none';
+    elements.pauseBtn.style.display = 'none';
+}
+
+// Iniciar próxima partida
+function startNextMatch() {
+    gameState.currentMatch++;
+    gameState.isFirstHalf = true;
+    elements.nextMatchBtn.style.display = 'none';
+    elements.startBtn.style.display = 'block';
+    elements.pauseBtn.style.display = 'none';
+    
+    // Adicionar mensagem
+    addMessage(`Preparando partida ${gameState.currentMatch}...`, 'important');
+}
+
+// Finalizar o jogo
+function endGame() {
+    addMessage(`Fim do jogo! Placar final: ${gameState.config.teamAName} ${gameState.scoreTeamA} x ${gameState.scoreTeamB} ${gameState.config.teamBName}`, 'important');
+    
+    // Determinar o vencedor geral
+    let winner = '';
+    if (gameState.scoreTeamA > gameState.scoreTeamB) {
+        winner = `${gameState.config.teamAName} venceu o jogo!`;
+    } else if (gameState.scoreTeamB > gameState.scoreTeamA) {
+        winner = `${gameState.config.teamBName} venceu o jogo!`;
+    } else {
+        winner = 'O jogo terminou em empate!';
+    }
+    
+    // Mostrar resultado final no modal
+    showFinalResult(winner);
+    
+    // Atualizar UI
+    elements.startBtn.style.display = 'none';
+    elements.pauseBtn.style.display = 'none';
+    elements.restartBtn.style.display = 'block';
+}
+
+// Mostrar resultado final
+function showFinalResult(winner) {
+    elements.finalResultContent.innerHTML = `
+        <h3 style="text-align: center; margin-bottom: 20px;">${winner}</h3>
+        
+        <h4>Resultados das Partidas:</h4>
+        ${gameState.matchResults.map(match => `
+            <p>Partida ${match.match}: ${gameState.config.teamAName} ${match.scoreTeamA} x ${match.scoreTeamB} ${gameState.config.teamBName}</p>
+        `).join('')}
+        
+        <h4 style="margin-top: 20px;">Estatísticas Finais:</h4>
+        <p>Total de gols: ${gameState.scoreTeamA + gameState.scoreTeamB}</p>
+        <p>Finalizações: ${gameState.stats.shotsTeamA + gameState.stats.shotsTeamB}</p>
+        <p>Passes: ${gameState.stats.passesTeamA + gameState.stats.passesTeamB}</p>
+        <p>Desarmes: ${gameState.stats.tacklesTeamA + gameState.stats.tacklesTeamB}</p>
+        
+        <h4 style="margin-top: 20px;">Créditos Finais: ${gameState.config.credits}</h4>
+    `;
+    
+    openModal('result-modal');
+}
+
+// Reiniciar o jogo
+function restartGame() {
+    // Resetar estado do jogo
+    gameState.currentMatch = 1;
+    gameState.isFirstHalf = true;
+    gameState.scoreTeamA = 0;
+    gameState.scoreTeamB = 0;
+    gameState.matchScoreTeamA = 0;
+    gameState.matchScoreTeamB = 0;
+    gameState.timeLeft = 0;
+    gameState.isMatchRunning = false;
+    gameState.isBettingOpen = false;
+    gameState.isPaused = false;
+    gameState.bets = [];
+    gameState.activeBets = [];
+    gameState.nextGoalBet = null;
+    gameState.matchResults = [];
+    
+    // Resetar créditos para o valor inicial
+    gameState.config.credits = parseInt(document.getElementById('starting-credits').value) || 1000;
+    
+    // Limpar mensagens
+    elements.messages.innerHTML = '';
+    
+    // Atualizar UI
+    elements.scoreA.textContent = '0';
+    elements.scoreB.textContent = '0';
+    elements.timer.textContent = formatTime(gameState.config.matchDuration);
+    elements.matchPhase.textContent = '1º Tempo';
+    elements.possession.textContent = 'Posse: 50% / 50%';
+    elements.betStatus.textContent = 'Aguardando início da partida...';
+    elements.startBtn.style.display = 'block';
+    elements.pauseBtn.style.display = 'none';
+    elements.restartBtn.style.display = 'none';
+    elements.nextMatchBtn.style.display = 'none';
+    
+    // Recriar jogadores
+    createPlayers();
+    
+    // Posicionar jogadores
+    positionPlayers();
+    
+    // Renderizar
+    renderPlayersAndBall();
+    
+    // Atualizar estatísticas
+    updateStats();
+    
+    // Adicionar mensagem inicial
+    addMessage('Jogo reiniciado. Configure e inicie uma nova partida!', 'important');
+}
+
+// Atualizar toda a UI
+function updateUI() {
+    elements.scoreA.textContent = gameState.matchScoreTeamA;
+    elements.scoreB.textContent = gameState.matchScoreTeamB;
+    
+    // Atualizar créditos
+    elements.playerCredits.textContent = `Créditos: ${gameState.config.credits}`;
+    
+    // Atualizar apostas ativas
+    elements.activeBets.textContent = gameState.activeBets.length;
+}
+
+// Abrir modal
+function openModal(modalId) {
+    if (modalId === 'bet-modal') {
+        showBetHistory();
+    }
+    
+    document.getElementById(modalId).style.display = 'flex';
+}
+
+// Fechar modal
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+// Aplicar configurações
+function applyConfig() {
+    // Obter valores dos inputs
+    gameState.config.teamAName = document.getElementById('team-a-name').value || 'Time Vermelho';
+    gameState.config.teamBName = document.getElementById('team-b-name').value || 'Time Azul';
+    gameState.config.matchDuration = parseFloat(document.getElementById('match-duration').value) * 60 || 90;
+    gameState.config.totalMatches = parseInt(document.getElementById('total-matches').value) || 2;
+    gameState.config.credits = parseInt(document.getElementById('starting-credits').value) || 1000;
+    gameState.config.fieldType = document.getElementById('field-type').value || 'grass';
+    gameState.config.weather = document.getElementById('weather').value || 'sunny';
+    
+    // Aplicar efeitos visuais
+    applyFieldEffects();
+    
+    // Atualizar UI
+    elements.teamATitle.textContent = gameState.config.teamAName;
+    elements.teamBTitle.textContent = gameState.config.teamBName;
+    elements.playerCredits.textContent = `Créditos: ${gameState.config.credits}`;
+    
+    // Fechar modal
+    closeModal('config-modal');
+    
+    // Adicionar mensagem
+    addMessage('Configurações aplicadas com sucesso!', 'important');
+}
+
+// Formatar tempo (segundos para MM:SS)
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Iniciar o jogo quando a página carregar
+window.onload = initGame;
