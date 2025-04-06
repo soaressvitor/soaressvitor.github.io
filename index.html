@@ -848,14 +848,14 @@
       addChips();
     }
 
-    function createCardElement(card, isHidden ) {
-      const cardElement = document.createElement('div');
-      cardElement.className = 'card';
+    function createCardElement(card, isHidden = false) {
+  const cardElement = document.createElement('div');
+  cardElement.className = 'card';
 
-      if (isHidden) {
-        cardElement.classList.add('card-back');
-        cardElement.innerHTML = '🂠';
-        return cardElement;
+  if (isHidden) {
+    cardElement.classList.add('card-back');
+    cardElement.innerHTML = '🂠';
+    return cardElement;
       }
 
       if (suitColors[card.suit] === 'red') {
@@ -1013,18 +1013,18 @@
 
       // Distribui cartas com pequeno atraso para efeito
       setTimeout(() => {
-        playerCards.push(dealCard());
-        dealerCards.push(dealCard());
-        updateSums();
-        displayCards();
+    playerCards.push(dealCard());
+    dealerCards.push(dealCard());
+    updateSums();
+    displayCards(); // Aqui a primeira carta do dealer já aparece oculta
 
-        setTimeout(() => {
-          playerCards.push(dealCard());
-          dealerCards.push(dealCard());
-          updateSums();
-          displayCards();
+    setTimeout(() => {
+      playerCards.push(dealCard());
+      dealerCards.push(dealCard());
+      updateSums();
+      displayCards(); // Continua oculta
 
-          gameStarted = true;
+      gameStarted = true; // Flag importante para controle
           canDouble = true;
 
           // Atualiza botões
